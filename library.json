@@ -1,0 +1,34 @@
+{
+    "name": "LinearActuatorController",
+    "version": "0.1.0",
+    "description": "Linear Actuator Controller",
+    "keywords": "M5Atom",
+    "authors": {
+        "name": "MaSiRo Project.",
+        "email": "masiro.to.akari@gmail.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/MasterAkari/LinearActuatorController.git"
+    },
+    "license": "MIT",
+    "frameworks": "arduino",
+    "platforms": "espressif32",
+    "headers": [
+        "linear_actuator_controller.hpp"
+    ],
+    "examples": [
+        {
+            "name": "basic_for_M5StackAtom",
+            "base": "examples/basic_for_M5StackAtom",
+            "files": [
+                "basic_for_M5StackAtom.ino"
+            ]
+        }
+    ],
+    "export": {
+        "exclude": [
+            "test/*"
+        ]
+    }
+}
