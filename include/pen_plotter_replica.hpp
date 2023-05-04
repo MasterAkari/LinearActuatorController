@@ -29,10 +29,12 @@ public:
 public:
     void begin();
     void loop();
+    void pen_release();
 
 private:
     void _move_pen(unsigned int postion);
     void _move_lac(double postion);
+    void _connection(unsigned int postion);
     void _fin();
 
 private:
@@ -40,6 +42,8 @@ private:
 
     int _servo_wait = RC_SERVO_WAIT_TIME_MS;
     Servo _pen;
+    bool _connected                   = false;
+    unsigned int _postion_pen_default = 90;
 
 private:
     const int TIMEOUT_MS = 100;

@@ -14,6 +14,7 @@
 
 PenPlotterPrimary::PenPlotterPrimary(int rx, int tx)
 {
+    this->_initialized = false;
     ///////////////////////////////
     // Linear Actuator
     ///////////////////////////////
@@ -27,45 +28,61 @@ PenPlotterPrimary::PenPlotterPrimary(int rx, int tx)
     Serial2.flush();
 }
 
+void PenPlotterPrimary::begin()
+{
+    do {
+        Serial2.write('C');
+        Serial2.write(this->_pen_position_up);
+    } while (false == this->_move_replica_wait());
+    this->_initialized = true;
+    this->postion_start();
+}
+void PenPlotterPrimary::loop()
+{
+}
+
 void PenPlotterPrimary::pen_control(bool flag_write)
 {
-    Serial2.write('P');
-    if (true == flag_write) {
-        Serial2.write(this->_pen_position_down);
-    } else {
-        Serial2.write(this->_pen_position_up);
+    if (true == this->_initialized) {
+        Serial2.write('P');
+        if (true == flag_write) {
+            Serial2.write(this->_pen_position_down);
+        } else {
+            Serial2.write(this->_pen_position_up);
+        }
+        this->_move_replica_wait();
     }
-    this->_move_replica_wait();
 }
 
 void PenPlotterPrimary::move(double x, double y)
 {
-    double a_x          = 0;
-    double a_y          = 0;
-    double current_x    = (double)this->pos_x;
-    double current_y    = (double)this->pos_y;
-    double difference_x = (x - this->pos_x);
-    double difference_y = (y - this->pos_y);
-    int max_value       = (int)(max(abs(difference_x), abs(difference_y)) / this->_resolution);
+    if (true == this->_initialized) {
+        double a_x          = 0;
+        double a_y          = 0;
+        double current_x    = (double)this->pos_x;
+        double current_y    = (double)this->pos_y;
+        double difference_x = (x - this->pos_x);
+        double difference_y = (y - this->pos_y);
+        int max_value       = (int)(max(abs(difference_x), abs(difference_y)) / this->_resolution);
 
-    if (0 != max_value) {
-        a_x = (double)(difference_x / max_value);
-        a_y = (double)(difference_y / max_value);
-    }
-    log_d("   max_value=%d / x,y=%5.3f,%5.3f / a_x,a_y: %5.3f,%5.3f", max_value, x, y, a_x, a_y);
+        if (0 != max_value) {
+            a_x = (double)(difference_x / max_value);
+            a_y = (double)(difference_y / max_value);
+        }
 
-    for (int i = 0; i < max_value; i++) {
-        current_x += a_x;
-        current_y += a_y;
-        this->_move(current_x, current_y);
+        for (int i = 0; i < max_value; i++) {
+            current_x += a_x;
+            current_y += a_y;
+            this->_move(current_x, current_y);
+        }
+        this->_move(x, y);
     }
-    this->_move(x, y);
 }
 
 void PenPlotterPrimary::postion_start()
 {
     this->pen_control(false);
-    this->move(50, 25);
+    this->_move(this->POSTION_START_X, this->POSTION_START_Y);
 }
 
 /////////////////////////////////////////////////
@@ -73,7 +90,6 @@ void PenPlotterPrimary::postion_start()
 /////////////////////////////////////////////////
 void PenPlotterPrimary::_move(double x, double y)
 {
-    log_d("   x,y: %5.3f,%5.3f   <-   %5.3f,%5.3f", x, y, this->pos_x, this->pos_y);
     bool result = this->_move_replica_start(x);
     this->_move_primary(y);
     if (true == result) {
@@ -102,10 +118,11 @@ bool PenPlotterPrimary::_move_replica_start(double target)
     }
     return result;
 }
-void PenPlotterPrimary::_move_replica_wait()
+bool PenPlotterPrimary::_move_replica_wait()
 {
+    bool result      = true;
     int data         = 0;
-    int timeout_cont = (1000) * 500;
+    int timeout_cont = (1000) * this->TIMEOUT_MS;
     do {
         if (0 < Serial2.available()) {
             data = Serial2.read();
@@ -113,8 +130,10 @@ void PenPlotterPrimary::_move_replica_wait()
             delayMicroseconds(1);
         }
         if (0 >= timeout_cont) {
+            result = false;
             break;
         }
         timeout_cont--;
     } while (data != 0xAA);
+    return result;
 }

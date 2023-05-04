@@ -9,6 +9,7 @@
  *
  */
 #if PLOT_PRIMARY || PLOT_REPLICA || PLOT_TEST
+
 #include <ESP32Servo.h>
 #include <M5Atom.h>
 
@@ -18,75 +19,19 @@
 #if PLOT_PRIMARY
 
 #include "pen_plotter_primary.hpp"
+
 PenPlotterPrimary pp;
 
 void setup_pen_plotter()
 {
-    delay(1000);
+    M5.dis.fillpix(CRGB::Yellow);
     pp.postion_start();
+    M5.dis.fillpix(CRGB::Green);
 }
 
 void loop_pen_plotter()
 {
-    static bool flag_up = true;
-    int separate        = 2;
-    log_d("//////////////////////////////");
-
-    int16_t pos;
-    int16_t i;
-    int16_t sp;
-    int pos_min = 40;
-    int pos_max = 60;
-    pp.pen_control(false);
-
-    for (i = 0; i < separate; i += 2) {
-        log_d(" x: %d", i);
-        sp = (100 / separate);
-        ///////////////////////////////////////
-        pos = i * sp;
-        pp.move(pos, pos_min);
-        pp.pen_control(true);
-        pp.move(pos, pos_max);
-        pp.pen_control(false);
-        ///////////////////////////////////////
-        pos = (i + 1) * sp;
-        pp.move(pos, pos_max);
-        pp.pen_control(true);
-        pp.move(pos, pos_min);
-        pp.pen_control(false);
-    }
-    log_d("------------------------------");
-    for (i = 0; i < separate; i += 2) {
-        log_d(" y: %d", i);
-        sp = (100 / separate);
-        ///////////////////////////////////////
-        pos = i * sp;
-        pp.move(pos_min, pos);
-        pp.pen_control(true);
-        pp.move(pos_max, pos);
-        pp.pen_control(false);
-        ///////////////////////////////////////
-        pos = (i + 1) * sp;
-        pp.move(pos_max, pos);
-        pp.pen_control(true);
-        pp.move(pos_min, pos);
-        pp.pen_control(false);
-    }
-    ///////////////////////////////////////
-    pp.move(pos_min, pos_max);
-    pp.pen_control(true);
-    pp.move(pos_max, pos_min);
-    pp.pen_control(false);
-    ///////////////////////////////////////
-    pp.move(pos_max, pos_max);
-    pp.pen_control(true);
-    pp.move(pos_min, pos_min);
-    pp.pen_control(false);
-    ///////////////////////////////////////
-
-    pp.postion_start();
-    ////////////////////////
-    log_d("==============================");
+    pp.loop();
 }
 
 ////////////////////////////////////////////////////////////
@@ -95,29 +40,42 @@ void loop_pen_plotter()
 #elif PLOT_REPLICA
 
 #include "pen_plotter_replica.hpp"
+
 PenPlotterReplica pp;
 
 void setup_pen_plotter()
 {
+    M5.dis.fillpix(CRGB::Yellow);
     pp.begin();
+    M5.dis.fillpix(CRGB::Black);
 }
 
 void loop_pen_plotter()
 {
     pp.loop();
+    M5.update();
+    if (true == M5.Btn.wasReleased()) {
+        pp.pen_release();
+    }
 }
 
+////////////////////////////////////////////////////////////
+// PLOT_PRIMARY[TEST]
+////////////////////////////////////////////////////////////
 #elif PLOT_TEST
 
 #include "pen_plotter_primary.hpp"
+
 PenPlotterPrimary pp;
 
 void setup_pen_plotter()
 {
-    pp.postion_start();
+    M5.dis.fillpix(CRGB::Yellow);
     if (0 < Serial.available()) {
         Serial.read();
     }
+    pp.begin();
+    M5.dis.fillpix(CRGB::Green);
 }
 
 void loop_pen_plotter()
@@ -131,11 +89,9 @@ void loop_pen_plotter()
         uint16_t dat = Serial.read();
         log_d("  char: %c", dat);
         switch (dat) {
-            case 'P':
             case 'p':
                 pp.pen_control(true);
                 break;
-            case 'O':
             case 'o':
                 pp.pen_control(false);
                 break;
@@ -182,32 +138,15 @@ void setup()
 {
     M5.begin(true, false, true);
     M5.dis.begin();
-    M5.dis.fillpix(CRGB::Blue);
     ///////////////////////////////
     setup_pen_plotter();
     ///////////////////////////////
-    M5.dis.fillpix(CRGB::Green);
 }
 
 void loop()
 {
-#if PLOT_PRIMARY
-    M5.update();
-    if (true == M5.Btn.wasReleased()) {
-        M5.dis.fillpix(CRGB::Yellow);
-        ////////////////////////
-        loop_pen_plotter();
-        ////////////////////////
-        M5.dis.fillpix(CRGB::Green);
-    }
-#elif PLOT_REPLICA
-    ////////////////////////
+    ///////////////////////////////
     loop_pen_plotter();
-    ////////////////////////
-#elif PLOT_TEST
-    ////////////////////////
-    loop_pen_plotter();
-    ////////////////////////
-#endif
+    ///////////////////////////////
 }
 #endif

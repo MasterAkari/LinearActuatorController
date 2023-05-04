@@ -18,6 +18,9 @@ public:
     PenPlotterPrimary(int rx = 32, int tx = 26);
 
 public:
+    void begin();
+    void loop();
+
     void pen_control(bool flag_write);
 
     void postion_start();
@@ -30,7 +33,7 @@ private:
     void _move(double x, double y);
     void _move_primary(double target);
     bool _move_replica_start(double target);
-    void _move_replica_wait();
+    bool _move_replica_wait();
 
 private:
     LinearActuatorController _lac;
@@ -38,6 +41,12 @@ private:
     int _pen_position_up   = 90;
     int _pen_position_down = 110;
     double _resolution     = 1;
+    bool _initialized      = false;
+
+private:
+    const int TIMEOUT_MS      = 500;
+    const int POSTION_START_X = 50;
+    const int POSTION_START_Y = 25;
 };
 
 #endif

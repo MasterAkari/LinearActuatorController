@@ -14,6 +14,7 @@
 
 PenPlotterReplica::PenPlotterReplica(int servo_wait_time_ms, int rx, int tx, int rc_servo_pin)
 {
+    this->_connected = false;
     ///////////////////////////////
     // RC Servo
     ///////////////////////////////
@@ -42,6 +43,9 @@ void PenPlotterReplica::begin()
 {
     // this->_pen.write(90);
     // this->_move_lac(50);
+    do {
+        this->loop();
+    } while (false == this->_connected);
 }
 
 void PenPlotterReplica::loop()
@@ -78,6 +82,18 @@ void PenPlotterReplica::loop()
                 double postion = (dat * 0x100 + pos) / 100.0;
                 this->_move_lac(postion);
             }
+        } else if ('C' == dat) {
+            while (0 >= Serial2.available()) {
+                timeout_count--;
+                if (0 >= timeout_count) {
+                    break;
+                }
+                delayMicroseconds(1);
+            }
+            if (0 < timeout_count) {
+                pos = Serial2.read();
+                this->_connection(pos);
+            }
         } else {
             Serial2.read();
             timeout_count = 0;
@@ -87,6 +103,10 @@ void PenPlotterReplica::loop()
             Serial2.clearWriteError();
         }
     }
+}
+void PenPlotterReplica::pen_release()
+{
+    this->_move_pen(this->_postion_pen_default);
 }
 
 /////////////////////////////////////////////////
@@ -103,6 +123,12 @@ void PenPlotterReplica::_move_pen(unsigned int postion)
 void PenPlotterReplica::_move_lac(double postion)
 {
     this->_lac.move(postion);
+    this->_fin();
+}
+void PenPlotterReplica::_connection(unsigned int postion)
+{
+    this->_postion_pen_default = postion;
+    this->_connected           = true;
     this->_fin();
 }
 
