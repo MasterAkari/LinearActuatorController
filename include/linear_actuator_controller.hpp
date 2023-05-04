@@ -25,11 +25,6 @@ public:
     LinearActuatorController(uint8_t mt_driver_1 = 22, //
                              uint8_t mt_driver_2 = 19,
                              uint8_t adc         = 33);
-    /**
-     * @brief Destroy the Linear Actuator Controller object
-     *
-     */
-    ~LinearActuatorController();
 
     /**
      * @brief Set the up margin object
@@ -71,6 +66,7 @@ private:
     uint8_t _mt_driver_1 = 0;
     uint8_t _mt_driver_2 = 0;
     uint8_t _adc         = 0;
+    uint16_t _pos        = 0;
 
     int8_t _samples_analog = 16;
     uint16_t _margin_min;
@@ -78,8 +74,9 @@ private:
 
     uint32_t _timeout_count_max = 0xFFFFFFFF;
 
+    bool _initialized = false;
+
 private:
-    // const uint8_t HIGH = 1;
     const uint8_t MOTOR_STOP = LOW;
     const uint8_t MOTOR_RUN  = HIGH;
 };

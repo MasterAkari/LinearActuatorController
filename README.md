@@ -18,10 +18,10 @@
 
 ### parts list
 
-| No. |          | Device type. | Device    |
-| --- | -------- | ------------ | --------- |
-| 1.  | Required | Board        | ATOM Lite |
-| 2.  | Required | Board        | ATOM Lite |
+| No. |          | Device type. | Device                    | URL                                          |
+| --- | -------- | ------------ | ------------------------- | -------------------------------------------- |
+| 1.  | Required | Board        | ATOM Lite                 |                                              |
+| 2.  | Required | Module       | M5Stack ATOM用1軸直動機構 | https://www.switch-science.com/products/7675 |
 
 
 ## Installation
@@ -38,22 +38,24 @@ board = m5stack-atom
 framework = arduino
 monitor_speed = 115200
 lib_deps =
-	m5stack/M5Atom@^0.1.0
-	fastled/FastLED@^3.5.0
-  https://github.com/MasterAkari/LinearActuatorController.git
+    m5stack/M5Atom@^0.1.0
+    fastled/FastLED@^3.5.0
+    https://github.com/MasterAkari/LinearActuatorController.git
 ```
 
 * main.cpp
 
 ```c++
-#include <linear_actuator_controller.hpp>
+#include "linear_actuator_controller.hpp"
+
+#include <Arduino.h>
+#include <Wire.h>
 
 LinearActuatorController lac;
 
 void setup()
 {
     lac.begin();
-
 }
 
 void loop()
@@ -92,10 +94,7 @@ It is listed [here](./Changelog).
 
 ## Roadmap
 
-* ペンプロッタ拡張キット用のクラスの追加 : (next ver.0.2.0)
-* WiFiで操作するためのUIの追加 : (next ver.0.3.0)
-* WiFiからペンプロッタのサーボの初期位置設定 : (next ver.0.4.0)
-* WiFiからGコードなどの描画するデータを渡す機能 : (next ver.0.5.0)
+It is listed [here](./Changelog).
 
 <!--
 * Update irregularly.

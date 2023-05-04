@@ -19,6 +19,7 @@
 
 LinearActuatorController::LinearActuatorController(uint8_t mt_driver_1, uint8_t mt_driver_2, uint8_t adc)
 {
+    this->_initialized = false;
     this->_mt_driver_1 = mt_driver_1;
     this->_mt_driver_2 = mt_driver_2;
     this->_adc         = adc;
@@ -26,8 +27,10 @@ LinearActuatorController::LinearActuatorController(uint8_t mt_driver_1, uint8_t 
     pinMode(this->_adc, INPUT); // ADC
 }
 
-LinearActuatorController::~LinearActuatorController()
+void LinearActuatorController::setup_margin(double inside_percentage, double outside_percentage)
 {
+    this->_margin_min = (uint16_t)((POS_MAX - POS_MIN) * (max(0.0, min(100.0, inside_percentage))) / 100.0);
+    this->_margin_max = (uint16_t)((POS_MAX - POS_MIN) * (max(0.0, min(100.0, outside_percentage))) / 100.0);
 }
 
 void LinearActuatorController::begin(uint16_t timeout_ms)
@@ -38,65 +41,75 @@ void LinearActuatorController::begin(uint16_t timeout_ms)
     digitalWrite(this->_mt_driver_2, this->MOTOR_STOP); // Motor Stop[IN2]
 
     this->_timeout_count_max = (timeout_ms * 1000) / this->_samples_analog;
-}
-
-void LinearActuatorController::setup_margin(double inside_percentage, double outside_percentage)
-{
-    this->_margin_min = (uint16_t)((POS_MAX - POS_MIN) * (max(0.0, min(100.0, inside_percentage))) / 100.0);
-    this->_margin_max = (uint16_t)((POS_MAX - POS_MIN) * (max(0.0, min(100.0, outside_percentage))) / 100.0);
+    this->_initialized       = true;
+    this->_pos               = this->_read_position(this->_adc);
 }
 
 bool LinearActuatorController::move(double percentage)
 {
     bool result = true;
-    MODE_LINEAR_ACTUATOR_T mode;
-    uint32_t timeout = this->_timeout_count_max;
-    uint16_t target  = 0;
-    if (percentage < 0) {
-        percentage = 0;
-    } else if (percentage > 100) {
-        percentage = 100;
-    }
-    target = (uint16_t)((POS_MAX - POS_MIN) * (percentage / 100.0));
+    if (true == this->_initialized) {
+        MODE_LINEAR_ACTUATOR_T mode;
+        uint32_t timeout = this->_timeout_count_max;
+        uint16_t target  = 0;
+        if (percentage < 0) {
+            percentage = 0;
+        } else if (percentage > 100) {
+            percentage = 100;
+        }
+        target = (uint16_t)((POS_MAX - POS_MIN) * (percentage / 100.0));
 
-    uint16_t pos = this->_read_position(this->_adc);
-    if (target > pos) {
-        mode = MODE_LINEAR_ACTUATOR_OUTSIDE;
-        digitalWrite(this->_mt_driver_1, this->MOTOR_RUN);
-        digitalWrite(this->_mt_driver_2, this->MOTOR_STOP);
-        log_d(" Postion : OUTSIDE : %d -> %d[%d%%]", pos, target, percentage);
-    } else if (target < pos) {
-        mode = MODE_LINEAR_ACTUATOR_INSIDE;
+        if (target > this->_pos) {
+            mode = MODE_LINEAR_ACTUATOR_OUTSIDE;
+            digitalWrite(this->_mt_driver_1, this->MOTOR_RUN);
+            digitalWrite(this->_mt_driver_2, this->MOTOR_STOP);
+            log_d(" Postion : OUTSIDE : %d -> %d[%0.3f%%]", this->_pos, target, percentage);
+        } else if (target < this->_pos) {
+            mode = MODE_LINEAR_ACTUATOR_INSIDE;
+            digitalWrite(this->_mt_driver_1, this->MOTOR_STOP);
+            digitalWrite(this->_mt_driver_2, this->MOTOR_RUN);
+            log_d(" Postion : INSIDE  : %d -> %d[%0.3f%%]", this->_pos, target, percentage);
+        } else {
+            mode = MODE_LINEAR_ACTUATOR_NOT_MOVING;
+            log_d(" NOT MOVING");
+        }
+
+        while (MODE_LINEAR_ACTUATOR_NOT_MOVING != mode) {
+            this->_pos = this->_read_position(this->_adc);
+            log_v(" MOVE : %s[%d -> %d]", (MODE_LINEAR_ACTUATOR_INSIDE == mode) ? "INSIDE " : "OUTSIDE", this->_pos, target);
+
+            if ((MODE_LINEAR_ACTUATOR_OUTSIDE == mode) && (target <= this->_pos)) {
+                mode = MODE_LINEAR_ACTUATOR_NOT_MOVING;
+                break;
+            } else if ((MODE_LINEAR_ACTUATOR_INSIDE == mode) && (target >= this->_pos)) {
+                mode = MODE_LINEAR_ACTUATOR_NOT_MOVING;
+                break;
+            }
+            if (0 > timeout) {
+                result = false;
+                break;
+            }
+            timeout--;
+        }
+        // Motor Brake
         digitalWrite(this->_mt_driver_1, this->MOTOR_STOP);
-        digitalWrite(this->_mt_driver_2, this->MOTOR_RUN);
-        log_d(" Postion : INSIDE  : %d -> %d[%d%%]", pos, target, percentage);
+        digitalWrite(this->_mt_driver_2, this->MOTOR_STOP);
     } else {
-        mode = MODE_LINEAR_ACTUATOR_NOT_MOVING;
-        log_d(" NOT MOVING");
+        result = false;
     }
-
-    while (MODE_LINEAR_ACTUATOR_NOT_MOVING != mode) {
-        pos = this->_read_position(this->_adc);
-        log_v(" MOVE : %s[%d -> %d]", (MODE_LINEAR_ACTUATOR_INSIDE == mode) ? "INSIDE " : "OUTSIDE", pos, target);
-
-        if ((MODE_LINEAR_ACTUATOR_OUTSIDE == mode) && (target <= pos)) {
-            mode = MODE_LINEAR_ACTUATOR_NOT_MOVING;
-            break;
-        } else if ((MODE_LINEAR_ACTUATOR_INSIDE == mode) && (target >= pos)) {
-            mode = MODE_LINEAR_ACTUATOR_NOT_MOVING;
-            break;
-        }
-        if (0 > timeout) {
-            result = false;
-            break;
-        }
-        timeout--;
-    }
-    // Motor Brake
-    digitalWrite(this->_mt_driver_1, this->MOTOR_STOP);
-    digitalWrite(this->_mt_driver_2, this->MOTOR_STOP);
     return result;
 }
+
+double LinearActuatorController::get_position_percentage()
+{
+    uint16_t pos      = this->_read_position(this->_adc);
+    double percentage = ((double)(pos - POS_MIN) / (double)(POS_MAX - POS_MIN)) * 100.0;
+    return percentage;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Private Methods
+////////////////////////////////////////////////////////////////////////////
 
 uint16_t LinearActuatorController::_read_position(uint8_t pin_no)
 {
@@ -125,11 +138,4 @@ uint16_t LinearActuatorController::_read_position(uint8_t pin_no)
     pos = map(pos, this->_margin_min, this->_margin_max, POS_MIN, POS_MAX);
 
     return pos;
-}
-
-double LinearActuatorController::get_position_percentage()
-{
-    uint16_t pos      = this->_read_position(this->_adc);
-    double percentage = ((double)(pos - POS_MIN) / (double)(POS_MAX - POS_MIN)) * 100.0;
-    return percentage;
 }
