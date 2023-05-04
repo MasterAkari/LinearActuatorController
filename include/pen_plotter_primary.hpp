@@ -40,7 +40,7 @@ private:
 
     int _pen_position_up   = 90;
     int _pen_position_down = 110;
-    double _resolution     = 1;
+    double _resolution     = 0.5;
     bool _initialized      = false;
 
 private:

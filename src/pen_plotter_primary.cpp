@@ -91,10 +91,10 @@ void PenPlotterPrimary::postion_start()
 void PenPlotterPrimary::_move(double x, double y)
 {
     bool result = this->_move_replica_start(x);
-    this->_move_primary(y);
     if (true == result) {
         this->_move_replica_wait();
     }
+    this->_move_primary(y);
 }
 
 void PenPlotterPrimary::_move_primary(double target)
